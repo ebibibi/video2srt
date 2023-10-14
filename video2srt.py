@@ -4,11 +4,13 @@ from pydub import AudioSegment
 from moviepy.editor import *
 from datetime import timedelta
 import sys
+import torch
 
 class VideoToSRT:
     def __init__(self, video_path, output_path):
         self.video_path = video_path
         self.output_path = output_path
+        self.chunkNo = 0
 
     def _split_audio(self, audio_path, max_duration):
         audio = AudioSegment.from_file(audio_path)
@@ -22,25 +24,37 @@ class VideoToSRT:
         return chunks
 
     def _transcribe_chunk(self, chunk):
-        with open("temp_chunk.mp3", "wb") as f:
+        temp_chunk_path = f"./tmp/temp_chunk_{self.chunkNo}.mp3"
+        with open(temp_chunk_path, "wb") as f:
             chunk.export(f, format="mp3")
         
-        model = whisper.load_model("medium")
-        transcript = model.transcribe("temp_chunk.mp3")
+        if torch.cuda.is_available() :
+            model = whisper.load_model("large", device="cuda")
+        else :
+            model = whisper.load_model("large", device="cpu")
+        transcript = model.transcribe(temp_chunk_path)
+        
+        self.chunkNo += 1
         
         return transcript
 
     def generate_srt(self):
+        # create tmp directory
+        if not os.path.exists("./tmp"):
+            os.makedirs("./tmp")
+        
         # Extract audio from the video
         video = VideoFileClip(self.video_path)
-        video.audio.write_audiofile("temp_audio.mp3")
+        temp_audio_path = "./tmp/temp_audio.mp3"
+        video.audio.write_audiofile(temp_audio_path)
 
         # Split audio if it's too long
         max_duration = 10 * 60 * 1000  # 10 minutes in milliseconds
-        audio_chunks = self._split_audio("temp_audio.mp3", max_duration)
+        audio_chunks = self._split_audio(temp_audio_path, max_duration)
 
         subs = []
         idx = 0
+        elapsed_time = 0  # ここで経過時間を追跡するための変数を初期化します
 
         for chunk in audio_chunks:
             transcript = self._transcribe_chunk(chunk)
@@ -48,16 +62,19 @@ class VideoToSRT:
 
             for data in segments:
                 idx += 1
-                start = data["start"]
-                end = data["end"]
+                start = data["start"] + elapsed_time  # 経過時間を加算
+                end = data["end"] + elapsed_time      # 経過時間を加算
                 text = self._format_text(data["text"])
 
                 sub = srt.Subtitle(index=idx, 
                                    start=timedelta(seconds=start), 
                                    end=timedelta(seconds=end),
                                    content=text)
-                
+                # print number of subs
                 subs.append(sub)
+                print(f"number of subs : {len(subs)}")
+
+            elapsed_time += len(chunk) / 1000  # このチャンクの長さを経過時間に加算 (pydubはミリ秒単位での長さを返しますので、秒単位に変換)
 
         # Save to srt
         with open(self.output_path, "w", encoding="utf-8") as f:
