@@ -43,10 +43,16 @@ class VideoToSRT:
         if not os.path.exists("./tmp"):
             os.makedirs("./tmp")
         
-        # Extract audio from the video
-        video = VideoFileClip(self.video_path)
-        temp_audio_path = "./tmp/temp_audio.mp3"
-        video.audio.write_audiofile(temp_audio_path)
+        # Determine if the provided file is a video or an audio
+        audio_extensions = ['.mp3', '.wav', '.flac']
+        if any(self.video_path.lower().endswith(ext) for ext in audio_extensions):
+            # If it's an audio, use it directly
+            temp_audio_path = self.video_path
+        else:
+            # If it's a video, extract audio from it
+            video = VideoFileClip(self.video_path)
+            temp_audio_path = "./tmp/temp_audio.mp3"
+            video.audio.write_audiofile(temp_audio_path)
 
         # Split audio if it's too long
         max_duration = 10 * 60 * 1000  # 10 minutes in milliseconds
