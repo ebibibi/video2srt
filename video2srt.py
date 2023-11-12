@@ -91,6 +91,10 @@ class VideoToSRT:
         lines = text.split("\n")
         # 「。」を削除
         lines = [line.replace("。", "") for line in lines]
+
+        #末尾の「、」を削除
+        lines = [line.rstrip("、") for line in lines]
+
         formatted_lines = [self._add_line(line) for line in lines]
         return "\n".join(formatted_lines)
 
