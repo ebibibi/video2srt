@@ -104,14 +104,16 @@ def print_usage():
     print("Usage:")
     print("python video2srt.py [VIDEO_FILE] [OUTPUT_FILE]")
     print("Example:")
-    print("python video2srt.py sample_video.mp4 output.srt")
+    print("python video2srt.py sample_video.mp4 output.srt max_line_length")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
         print_usage()
         sys.exit(1)
 
     video_path = sys.argv[1]
     output_path = sys.argv[2]
-    video_to_srt = VideoToSRT(video_path, output_path)
+    max_line_length = int(sys.argv[3]) if len(sys.argv) == 4 else 40
+
+    video_to_srt = VideoToSRT(video_path, output_path, max_line_length)
     video_to_srt.generate_srt()
