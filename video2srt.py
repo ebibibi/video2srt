@@ -7,10 +7,11 @@ import sys
 import torch
 
 class VideoToSRT:
-    def __init__(self, video_path, output_path):
+    def __init__(self, video_path, output_path, max_line_length=40):
         self.video_path = video_path
         self.output_path = output_path
         self.chunkNo = 0
+        self.max_line_length = max_line_length
 
     def _split_audio(self, audio_path, max_duration):
         audio = AudioSegment.from_file(audio_path)
@@ -94,13 +95,10 @@ class VideoToSRT:
         return "\n".join(formatted_lines)
 
     def _add_line(self, s):
-        new_s = s
-        s_count = len(s)
-        s_max_count = 15
-        if s_count >= s_max_count:
-            if (s_count - s_max_count) >= 3:
-                new_s = s[:s_max_count] + "\n" + s[s_max_count:]
-        return new_s
+        if len(s) <= self.max_line_length:
+            return s
+        # 文字列を指定された長さで分割
+        return '\n'.join([s[i:i+self.max_line_length] for i in range(0, len(s), self.max_line_length)])
 
 def print_usage():
     print("Usage:")
